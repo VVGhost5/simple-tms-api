@@ -1,0 +1,178 @@
+// prisma/schema.prisma
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  Editor
+  Admin
+}
+
+enum TripStatus {
+  Planned
+  Loading
+  Customs
+  InTransitToPickup
+  InTransitToDelivery
+  Delivered
+  Completed
+  Cancelled
+}
+
+// Ukrainian driving licence categories (PDR / HSC), without A/A1 (motorcycles) and T (tram/trolleybus).
+enum LicenseCategory {
+  B1
+  B
+  BE
+  C1
+  C
+  C1E
+  CE
+  D1
+  D
+  D1E
+  DE
+}
+
+model Vehicle {
+  id               String   @id @default(uuid())
+  licensePlate     String
+  make             String
+  model            String
+  type             String
+  vin              String
+  fullWeight       Float
+  emptyWeight      Float
+  year             Int
+  fuelType         String
+  registrationCode String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  driver Driver?
+  trips  Trip[]
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, licensePlate])
+  @@unique([tenantId, vin])
+  @@index([tenantId])
+}
+
+model Driver {
+  id                String            @id @default(uuid())
+  firstName         String
+  lastName          String
+  licenseNumber     String
+  categories        LicenseCategory[]
+  phone             String
+  email             String?
+  birthDate         DateTime
+  licenseExpiryDate DateTime
+  status            String            @default("ACTIVE")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  currentVehicleId String?  @unique
+  currentVehicle   Vehicle? @relation(fields: [currentVehicleId, tenantId], references: [id, tenantId])
+
+  trips Trip[]
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([id, tenantId])
+  @@unique([currentVehicleId, tenantId])
+  @@unique([tenantId, licenseNumber])
+  @@unique([tenantId, phone])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+}
+
+model Trip {
+  id        String     @id @default(uuid())
+  driverId  String
+  vehicleId String
+  status    TripStatus @default(Planned)
+
+  driver  Driver  @relation(fields: [driverId, tenantId], references: [id, tenantId])
+  vehicle Vehicle @relation(fields: [vehicleId, tenantId], references: [id, tenantId])
+
+  loads   TripLoad[]
+  unloads TripUnload[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([id, tenantId])
+  @@index([tenantId])
+}
+
+model TripLoad {
+  id       String   @id @default(uuid())
+  tripId   String
+  date     DateTime
+  location String
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+model TripUnload {
+  id       String   @id @default(uuid())
+  tripId   String
+  date     DateTime
+  location String
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(Editor)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+
+  vehicles Vehicle[]
+  drivers  Driver[]
+  trips    Trip[]
+
+  @@index([tenantId])
+}
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users    User[]
+  vehicles Vehicle[]
+  drivers  Driver[]
+  trips    Trip[]
+}
