@@ -25,6 +25,16 @@ enum TripStatus {
   Cancelled
 }
 
+enum EmissionStandard {
+  EURO_1 @map("Євро-1")
+  EURO_2 @map("Євро-2")
+  EURO_3 @map("Євро-3")
+  EURO_4 @map("Євро-4")
+  EURO_5 @map("Євро-5")
+  EURO_6 @map("Євро-6")
+  EURO_7 @map("Євро-7")
+}
+
 // Ukrainian driving licence categories (PDR / HSC), without A/A1 (motorcycles) and T (tram/trolleybus).
 enum LicenseCategory {
   B1
@@ -40,20 +50,54 @@ enum LicenseCategory {
   DE
 }
 
+enum OwnershipType {
+  a       @map("Є власником")
+  b       @map("Не є власником")
+  special
+}
+
+enum VehicleCategory {
+  N2
+  N3
+  O3
+  O4
+}
+
 model Vehicle {
-  id               String   @id @default(uuid())
-  licensePlate     String
-  make             String
-  model            String
-  type             String
-  vin              String
-  fullWeight       Float
-  emptyWeight      Float
-  year             Int
-  fuelType         String
-  registrationCode String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                    String            @id @default(uuid())
+  licensePlate          String
+  make                  String
+  model                 String
+  type                  String?
+  commercialDescription String?
+  vinCode               String?
+  chassisNumber         String?
+  maximumMass           Int?
+  emptyMass             Int?
+  vehicleCategory       VehicleCategory?
+  capacity              Int?
+  bodyType              String?
+  fuelType              String?
+  maximumPower          Int?
+  emissionStandart      EmissionStandard?
+  color                 String?
+  numberOfSeats         Int?
+  specialMarks          String?
+  firstRegistrationDate DateTime?
+  registrationDate      DateTime?
+  surnameOrCompany      String?
+  givenNames            String?
+  manufacturingYear     Int?
+  address               String?
+  ownership             OwnershipType?
+  registrationCode      String?
+  periodOfValidity      DateTime?
+  tsc                   Int?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  semiTrailerId String?      @unique
+  semiTrailer   SemiTrailer? @relation(fields: [semiTrailerId, tenantId], references: [id, tenantId])
 
   driver Driver?
   trips  Trip[]
@@ -66,7 +110,55 @@ model Vehicle {
 
   @@unique([id, tenantId])
   @@unique([tenantId, licensePlate])
-  @@unique([tenantId, vin])
+  @@unique([tenantId, vinCode])
+  @@unique([semiTrailerId, tenantId])
+  @@index([tenantId])
+}
+
+model SemiTrailer {
+  id                    String            @id @default(uuid())
+  licensePlate          String
+  make                  String
+  model                 String
+  type                  String?
+  commercialDescription String?
+  vinCode               String?
+  chassisNumber         String?
+  maximumMass           Int?
+  emptyMass             Int?
+  vehicleCategory       VehicleCategory?
+  capacity              Int?
+  bodyType              String?
+  fuelType              String?
+  maximumPower          Int?
+  emissionStandart      EmissionStandard?
+  color                 String?
+  numberOfSeats         Int?
+  specialMarks          String?
+  firstRegistrationDate DateTime?
+  registrationDate      DateTime?
+  surnameOrCompany      String?
+  givenNames            String?
+  manufacturingYear     Int?
+  address               String?
+  ownership             OwnershipType?
+  registrationCode      String?
+  periodOfValidity      DateTime?
+  tsc                   Int?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  vehicle Vehicle?
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+
+  createdBy   User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdById String?
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, licensePlate])
+  @@unique([tenantId, vinCode])
   @@index([tenantId])
 }
 
@@ -129,11 +221,23 @@ model Trip {
   @@index([tenantId])
 }
 
+model Goods {
+  id           String       @id @default(uuid())
+  descrpiption String
+  volume       String
+  weight       String
+  isADR        Boolean
+  tripLoads    TripLoad[]
+  tripUnloads  TripUnload[]
+}
+
 model TripLoad {
   id       String   @id @default(uuid())
   tripId   String
   date     DateTime
   location String
+  goodsId  String?
+  goods    Goods?   @relation(fields: [goodsId], references: [id])
 
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
 }
@@ -143,6 +247,8 @@ model TripUnload {
   tripId   String
   date     DateTime
   location String
+  goodsId  String?
+  goods    Goods?   @relation(fields: [goodsId], references: [id])
 
   trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
 }
@@ -158,9 +264,10 @@ model User {
   tenantId String
   tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
-  vehicles Vehicle[]
-  drivers  Driver[]
-  trips    Trip[]
+  vehicles     Vehicle[]
+  semiTrailers SemiTrailer[]
+  drivers      Driver[]
+  trips        Trip[]
 
   @@index([tenantId])
 }
@@ -171,8 +278,9 @@ model Tenant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users    User[]
-  vehicles Vehicle[]
-  drivers  Driver[]
-  trips    Trip[]
+  users        User[]
+  vehicles     Vehicle[]
+  semiTrailers SemiTrailer[]
+  drivers      Driver[]
+  trips        Trip[]
 }

@@ -1,5 +1,6 @@
 import express, { type Application, type Request, type Response } from 'express';
 import vehicleRoutes from './routes/vehicle.routes.js';
+import semiTrailerRoutes from './routes/semi-trailer.routes.js';
 import driverRoutes from './routes/driver.routes.js';
 import tripsRoutes from "./routes/trips.routes.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -9,6 +10,7 @@ const app: Application = express();
 app.use(express.json());
 
 app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/semi-trailers', semiTrailerRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/trips', tripsRoutes);
 app.use('/api/auth', authRoutes);
